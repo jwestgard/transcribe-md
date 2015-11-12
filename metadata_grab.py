@@ -1,38 +1,66 @@
 #!/usr/bin/env python3
 
+import csv
 import requests
 import sys
 import xml.etree.ElementTree as ET
+from time import sleep
 
-with open(sys.argv[1], 'r') as infile, open(sys.argv[2], 'w') as outfile:
-    for pid in infile:
-        url = "http://fedora.lib.umd.edu/fedora/get/{0}/umdm".format(pid.rstrip('\n'))
-        print(url)
-        response = requests.get(url)
-        
-        root = ET.fromstring(response.text)
+def load_pids(infile):
+    with open(infile, 'r') as f:
+        result = [line.rstrip('\n') for line in f]
+        return result
 
-        # Main title -> descMeta/title@type="main"/
-        title = root.find('./title/[@type="main"]')
-        print(title.text)
+def write_csv(data):
+    fieldnames = set().union(*(d.keys() for d in data))
+    with open(sys.argv[2], 'w') as outfile:
+        dw = csv.DictWriter(outfile, fieldnames=fieldnames)
+        dw.writeheader()
+        for d in data:
+            dw.writerow(d)
 
-        # Summary -> descMeta/description@type="summary"/
-        
-        
-        
-# Coverage dates
-# descMeta/covTime/date/
+def extract_type(pid):
+    url = "http://fedora.lib.umd.edu/fedora/get/{0}/doInfo".format(pid)
+    response = requests.get(url)
+    doinfo = ET.fromstring(response.text)
+    type = doinfo.find('{http://www.itd.umd.edu/fedora/doInfo}type')
+    return type.text
 
-# <covTime>
-# <century certainty="exact" era="ad">1801-1900</century>
-# <date certainty="exact" era="ad">1834-09-1</date>
-# </covTime>
+def extract_metadata(pid):
+    result = {'pid': pid}
+    url = "http://fedora.lib.umd.edu/fedora/get/{0}/umdm".format(pid)
+    response = requests.get(url)
+    umdm = ET.fromstring(response.text)
+    # Media Type
+    mediatype = umdm.find('./mediaType/form')
+    result['mediatype'] = mediatype.text if mediatype is not None else ''
+    # Title Element
+    title = umdm.find('./title/[@type="main"]')
+    result['title'] = title.text if title is not None else ''
+    # Summary Element
+    summary = umdm.find('./description/[@type="summary"]')
+    result['summary'] = summary.text if summary is not None else ''
+    # Dates Elements
+    dates = umdm.find('./covTime')
+    result['dates'] = ";".join([d.text for d in dates]) if dates is not None else ''
+    # Repository Element
+    repository = umdm.find('./repository/corpName')
+    result['repository'] = repository.text if repository is not None else ''
+    # Collection Element
+    collection = umdm.find('./relationships/relation/bibRef/title')
+    result['collection'] = collection.text if collection is not None else ''
+    return result
 
-# Repository
-# descMeta/repository/corpname
+def main():
+    pids = load_pids(sys.argv[1])
+    result = []
+    for pid in pids[:100]:
+        if extract_type(pid) == "UMD_IMAGE":
+            result.append(extract_metadata(pid))
+    write_csv(result)
 
-# Archival Collection
-# descMeta/realationships/relation@label="archivalcollection"/bibRef/title@type="main"/
+if __name__ == "__main__":
+    main()
 
 # <relationships>
 # <relation label="archivalcollection" type="isPartOf">
@@ -45,16 +73,3 @@ with open(sys.argv[1], 'r') as infile, open(sys.argv[2], 'w') as outfile:
 # </bibRef>
 # </relation>
 # </relationships>
-
-
-
-
-     
-#     else:
-#         print("Downloading {0} ...".format(pid))
-#         
-#         response = requests.get(url, stream=True)
-#         with open(outfile, 'wb') as of:
-#             shutil.copyfileobj(response.raw, of)
-#         del response
-#         sleep(3)
