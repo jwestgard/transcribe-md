@@ -1,7 +1,0 @@
-pid,title,summary,dates,repository,collection
-"umd:2256
-",Sterling Family Papers,"62 letters, primarily written by a Civil War Union officer's wife, Tillie Farquhar Sterling, with additional letters written by Tillie's husband, Will Sterling, and Tillie's mother, Anna Virginia (""A. V."") Farquhar. They detail daily life in wartime Maryland.",2001-2100;2004,Digital Collections and Research,
-"umd:3393
-","Letter by Joseph Raynes, in Baltimore, to his Family, 1 September 1834","Letter written by Joseph Raynes from Baltimore, Maryland, to his family in Bonsall, Derbyshire, England, 1 September 1834. Describes life in Baltimore and the failure of the Bank of Maryland.",1801-1900;1834-09-1,Historical Manuscripts,Joseph Raynes papers
-"umd:3398
-","Letter by Joseph Raynes, in Liverpool, to his Family, 10 May 1831","Letter written by Joseph Raynes from Liverpool to his family in Bonsall, Derbyshire, England 10 May 1831. Describes the brig ""Russian,"" on which he has reserved a space to travel to Baltimore, Maryland.",1801-1900;1831-05-10,Historical Manuscripts,Joseph Raynes papers

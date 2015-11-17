@@ -51,13 +51,50 @@ def extract_metadata(pid):
     result['collection'] = collection.text if collection is not None else ''
     return result
 
+def get_parts(pid):
+    result = {}
+    url = "http://fedora.lib.umd.edu/fedora/get/{0}/rels-mets".format(pid)
+    ns = {'xmlns':'http://www.loc.gov/METS/',
+        'xlink':'http://www.w3.org/1999/xlink'}
+    response = requests.get(url)
+    mets = ET.fromstring(response.text)
+    rels = mets.find('./xmlns:structMap/xmlns:div/[@ID="rels"]', ns)
+    collections = rels.findall('./xmlns:div/[@ID="isMemberOfCollection"]', ns)
+    for c in collections:
+        n = c.find('./xmlns:fptr', ns)
+        result[n.attrib['FILEID']] = {'label': 'collection'}
+    parts = rels.findall('./xmlns:div/[@ID="hasPart"]', ns)
+    pages = mets.findall(
+        './xmlns:structMap/xmlns:div/[@ID="images"]/xmlns:div', ns)
+    files = mets.findall(
+        './xmlns:fileSec/xmlns:fileGrp/xmlns:file', ns)
+    for i in pages:
+        n = i.find('./xmlns:div/xmlns:fptr', ns)
+        result[n.attrib['FILEID']] = {'order': i.attrib['ORDER'],
+            'label': i.attrib['LABEL'] }
+    for f in files:
+        pid = f.find('./xmlns:FLocat', ns).attrib['{http://www.w3.org/1999/xlink}href']
+        result[f.attrib['ID']].update({'pid': pid})
+    return result
+
 def main():
     pids = load_pids(sys.argv[1])
     result = []
-    for pid in pids[:100]:
+    for pid in pids:
+        print(pid)
         if extract_type(pid) == "UMD_IMAGE":
-            result.append(extract_metadata(pid))
+            images = []
+            parts = get_parts(pid)
+            metadata = extract_metadata(pid)
+            for p in parts:
+                if parts[p]['label'] == 'collection':
+                    metadata['collection_pid'] = parts[p]['pid']
+                else:
+                    images.append(parts[p]['label'] + '|' + parts[p]['pid'])
+            metadata['images'] = ";".join(images)
+            result.append(metadata)
     write_csv(result)
+    
 
 if __name__ == "__main__":
     main()
