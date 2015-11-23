@@ -1,0 +1,9 @@
+type,pid,url,order,id,label
+image,umd:3396,http://fedora.lib.umd.edu/fedora/get/umd:3396/image,3,4,Page 3
+image,umd:3394,http://fedora.lib.umd.edu/fedora/get/umd:3394/image,1,2,Page 1
+image,umd:3395,http://fedora.lib.umd.edu/fedora/get/umd:3395/image,2,3,Page 2
+image,umd:3397,http://fedora.lib.umd.edu/fedora/get/umd:3397/image,4,5,Page 4
+image,umd:3401,http://fedora.lib.umd.edu/fedora/get/umd:3401/image,3,4,Page 3
+image,umd:3399,http://fedora.lib.umd.edu/fedora/get/umd:3399/image,1,2,Page 1
+image,umd:3400,http://fedora.lib.umd.edu/fedora/get/umd:3400/image,2,3,Page 2
+image,umd:3402,http://fedora.lib.umd.edu/fedora/get/umd:3402/image,4,5,Page 4
