@@ -7,9 +7,7 @@ The main script is fedora2csv.py, which can be used to extract essential metadat
 
 The script takes two parameters, an input file consisting of the PIDs for descriptive fedora 2 items (UMDM items).  It writes to files named according to a base name supplied as a second parameter.  For example:
 
-  {code}
-  $ python3 fedora2csv.py [infile] [outfilebase]
-  {code}
+  `$ python3 fedora2csv.py [infile] [outfilebase]`
   
 will look up the PIDs specified in the first file, extract metadata and related files, and output the data to three csv files:
   * outfilebase-cols.csv
