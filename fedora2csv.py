@@ -109,12 +109,13 @@ def main():
         type = get_type(pid)
         
         if type == "UMD_COLLECTION":
-            pass     
+            print('{0} is a collection; skipping...'.format(pid))
         
         elif type == "UMD_IMAGE":
             metadata = get_metadata(pid)
-            metadata['files'] = []
             relationships = get_rels(pid)
+            metadata['fileURLs'] = []
+            metadata['filePIDs'] = []
 
             for rel in relationships:
                 if rel['type'] == 'collection':
@@ -122,7 +123,8 @@ def main():
                 elif rel['type'] == 'image':
                     url = 'http://fedora.lib.umd.edu/fedora/get/{0}/image'.format(
                         rel['pid'])
-                    metadata['files'].append(url)
+                    metadata['fileURLs'].append(url)
+                    metadata['filePIDs'].append(rel['pid'])
                     rel['url'] = url
                     files.append(rel)
                 else:
@@ -137,7 +139,7 @@ def main():
     write_file(items, "items")
     
     # same the collections to file
-    write_file(collections, "cols")
+    write_file(collections, "collections")
     
     # save the files to file
     write_file(files, "files")
