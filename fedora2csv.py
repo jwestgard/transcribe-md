@@ -7,12 +7,18 @@ import xml.etree.ElementTree as ET
 from time import sleep
 
 
+#= Function =========
+# Load pids from file
+#====================
 def load_pids(infile):
     with open(infile, 'r') as f:
         result = [line.rstrip('\n') for line in f]
         return result
 
 
+#= Function ==========
+# write output to file
+#=====================
 def write_file(data, filetype):
     filename = sys.argv[2] + "-" + filetype + ".csv"
     with open(filename, 'w') as outfile:
@@ -23,6 +29,9 @@ def write_file(data, filetype):
             dw.writerow(d)
 
 
+#= Function ========================
+# get object type from Fedora server
+#===================================
 def get_type(pid):
     url = "http://fedora.lib.umd.edu/fedora/get/{0}/doInfo".format(pid)
     print(url)
@@ -32,6 +41,9 @@ def get_type(pid):
     return type.text
 
 
+#= Function ===================
+# get metadata xml and parse it
+#==============================
 def get_metadata(pid):
     result = {'pid': pid}
     url = "http://fedora.lib.umd.edu/fedora/get/{0}/umdm".format(pid)
@@ -65,6 +77,9 @@ def get_metadata(pid):
     return result
 
 
+#= Function ========================
+# get related objects from rels-mets
+#===================================
 def get_rels(pid):
     result = {}
     url = "http://fedora.lib.umd.edu/fedora/get/{0}/rels-mets".format(pid)
@@ -99,34 +114,48 @@ def get_rels(pid):
     return [result[r] for r in result]
 
 
+#= Function =====================
+# main logic to apply to each pid
+#================================
 def main():
     pids = load_pids(sys.argv[1])
-    collections = []
+    collections = {}
     items = []
     files = []
     
+    # loop through the input pids
     for pid in pids:
         type = get_type(pid)
         
         if type == "UMD_COLLECTION":
-            print('{0} is a collection; skipping...'.format(pid))
+            print('  => {0} is a collection; skipping...'.format(pid))
         
         elif type == "UMD_IMAGE":
             metadata = get_metadata(pid)
             relationships = get_rels(pid)
-            metadata['fileURLs'] = []
-            metadata['filePIDs'] = []
-
+            metadata['file_urls'] = []
+            metadata['file_pids'] = []
+            
+            # analyze relationships and assign object to appropriate list
             for rel in relationships:
+                del rel['id']
+                id = rel['pid']
                 if rel['type'] == 'collection':
-                    collections.append(rel)
+                    # if the collection is already in the list, append the pid
+                    if id in collections:
+                        collections[id]['children'].append(pid)
+                    # otherwise, add the collection to main list
+                    else:
+                        rel['children'] = [pid]
+                        collections[id] = rel
+                        
                 elif rel['type'] == 'image':
-                    url = 'http://fedora.lib.umd.edu/fedora/get/{0}/image'.format(
-                        rel['pid'])
-                    metadata['fileURLs'].append(url)
-                    metadata['filePIDs'].append(rel['pid'])
+                    url = 'http://fedora.lib.umd.edu/fedora/get/{0}/image'.format(id)
+                    metadata['file_urls'].append(url)
+                    metadata['file_pids'].append(id)
                     rel['url'] = url
                     files.append(rel)
+                    
                 else:
                     print('unknown type "{0}"'.format(rel['type']))
             
@@ -138,12 +167,16 @@ def main():
     # save the items to file
     write_file(items, "items")
     
-    # same the collections to file
-    write_file(collections, "collections")
+    # convert collections dict to list and save to file
+    collections_list = [collections[d] for d in collections]
+    write_file(collections_list, "collections")
     
     # save the files to file
     write_file(files, "files")
 
 
+#============
+# main logic
+#============
 if __name__ == "__main__":
     main()
