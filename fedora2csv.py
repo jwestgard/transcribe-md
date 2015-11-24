@@ -26,8 +26,18 @@ def write_file(data, filetype):
         dw = csv.DictWriter(outfile, fieldnames=fieldnames)
         dw.writeheader()
         for d in data:
-            dw.writerow(d)
+            dw.writerow({k:list_to_string(v, ";") for (k,v) in d.items()})
 
+
+#= Function ========================
+# convert lists to delimited strings
+#===================================
+def list_to_string(data, delimiter):
+    if type(data) is list:
+        return str(delimiter).join(data)
+    else:
+        return data
+            
 
 #= Function ========================
 # get object type from Fedora server
@@ -114,9 +124,9 @@ def get_rels(pid):
     return [result[r] for r in result]
 
 
-#= Function =====================
-# main logic to apply to each pid
-#================================
+#= Function ==================
+# main loop to handle each pid
+#=============================
 def main():
     pids = load_pids(sys.argv[1])
     collections = {}

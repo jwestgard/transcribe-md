@@ -1,9 +1,9 @@
-type,label,order,pid,url
-image,Page 2,2,umd:3395,http://fedora.lib.umd.edu/fedora/get/umd:3395/image
-image,Page 4,4,umd:3397,http://fedora.lib.umd.edu/fedora/get/umd:3397/image
-image,Page 1,1,umd:3394,http://fedora.lib.umd.edu/fedora/get/umd:3394/image
-image,Page 3,3,umd:3396,http://fedora.lib.umd.edu/fedora/get/umd:3396/image
-image,Page 2,2,umd:3400,http://fedora.lib.umd.edu/fedora/get/umd:3400/image
-image,Page 4,4,umd:3402,http://fedora.lib.umd.edu/fedora/get/umd:3402/image
-image,Page 1,1,umd:3399,http://fedora.lib.umd.edu/fedora/get/umd:3399/image
-image,Page 3,3,umd:3401,http://fedora.lib.umd.edu/fedora/get/umd:3401/image
+url,pid,order,label,type
+http://fedora.lib.umd.edu/fedora/get/umd:3397/image,umd:3397,4,Page 4,image
+http://fedora.lib.umd.edu/fedora/get/umd:3395/image,umd:3395,2,Page 2,image
+http://fedora.lib.umd.edu/fedora/get/umd:3396/image,umd:3396,3,Page 3,image
+http://fedora.lib.umd.edu/fedora/get/umd:3394/image,umd:3394,1,Page 1,image
+http://fedora.lib.umd.edu/fedora/get/umd:3402/image,umd:3402,4,Page 4,image
+http://fedora.lib.umd.edu/fedora/get/umd:3400/image,umd:3400,2,Page 2,image
+http://fedora.lib.umd.edu/fedora/get/umd:3401/image,umd:3401,3,Page 3,image
+http://fedora.lib.umd.edu/fedora/get/umd:3399/image,umd:3399,1,Page 1,image
