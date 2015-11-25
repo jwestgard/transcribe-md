@@ -74,7 +74,13 @@ def get_metadata(pid):
 
     # Dates Elements
     dates = umdm.find('./covTime')
-    result['dates'] = [d.text for d in dates] if dates is not None else ''
+    if dates is None:
+        result['century'] = ''
+        result['date'] = ''
+    else:
+        for d in dates:
+            result['century'] = [d.text for d in dates if d.tag == "century"]
+            result['date'] = [d.text for d in dates if d.tag == "date"]
 
     # Repository Element
     repository = umdm.find('./repository/corpName')
@@ -83,6 +89,11 @@ def get_metadata(pid):
     # Collection Element
     collection = umdm.find('./relationships/relation/bibRef/title')
     result['collection'] = collection.text if collection is not None else ''
+    
+    # Subject Elements
+    subjects = umdm.findall('./subject/[@type="topical"]')
+    result['subjects'] = [
+        s.text for s in subjects if s is not ''] if subjects is not None else ''
     
     return result
 
@@ -93,14 +104,16 @@ def get_metadata(pid):
 def get_rels(pid):
     result = {}
     url = "http://fedora.lib.umd.edu/fedora/get/{0}/rels-mets".format(pid)
-    ns = {'xmlns':'http://www.loc.gov/METS/', 'xlink':'http://www.w3.org/1999/xlink'}
+    ns = {'xmlns':'http://www.loc.gov/METS/',
+        'xlink':'http://www.w3.org/1999/xlink'}
     
     response = requests.get(url)
     mets = ET.fromstring(response.text)
     rels = mets.find('./xmlns:structMap/xmlns:div/[@ID="rels"]', ns)
     
     # Get the pids of all related items
-    collections = rels.findall('./xmlns:div/[@ID="isMemberOfCollection"]/xmlns:fptr', ns)
+    collections = rels.findall(
+        './xmlns:div/[@ID="isMemberOfCollection"]/xmlns:fptr', ns)
     for c in collections:
         id = c.attrib['FILEID']
         result[id] = {'id': id, 'type': 'collection'}
@@ -110,15 +123,18 @@ def get_rels(pid):
         result[id] = {'id': id, 'type': 'image'}
     
     # Get the page attributes for each part
-    pages = mets.findall('./xmlns:structMap/xmlns:div/[@ID="images"]/xmlns:div', ns)
+    pages = mets.findall(
+        './xmlns:structMap/xmlns:div/[@ID="images"]/xmlns:div', ns)
     for p in pages:
         id = p.find('./xmlns:div/xmlns:fptr', ns).attrib['FILEID']
-        result[id].update({'order': p.attrib['ORDER'], 'label': p.attrib['LABEL']})
+        result[id].update(
+            {'order': p.attrib['ORDER'], 'label': p.attrib['LABEL']})
     
     # Get the pids for each related item
     files = mets.findall('./xmlns:fileSec/xmlns:fileGrp/xmlns:file', ns)
     for f in files:
-        pid = f.find('./xmlns:FLocat', ns).attrib['{http://www.w3.org/1999/xlink}href']
+        pid = f.find(
+            './xmlns:FLocat', ns).attrib['{http://www.w3.org/1999/xlink}href']
         result[f.attrib['ID']].update({'pid': pid})
     
     return [result[r] for r in result]
@@ -144,7 +160,8 @@ def main():
             metadata = get_metadata(pid)
             relationships = get_rels(pid)
             metadata['file_urls'] = []
-            metadata['file_pids'] = []
+            metadata['has_part'] = []
+            metadata['part_of'] = []
             
             # analyze relationships and assign object to appropriate list
             for rel in relationships:
@@ -158,11 +175,13 @@ def main():
                     else:
                         rel['children'] = [pid]
                         collections[id] = rel
+                    # add the collection pid to the item metadata
+                    metadata['part_of'].append(id)
                         
                 elif rel['type'] == 'image':
                     url = 'http://fedora.lib.umd.edu/fedora/get/{0}/image'.format(id)
                     metadata['file_urls'].append(url)
-                    metadata['file_pids'].append(id)
+                    metadata['has_part'].append(id)
                     rel['url'] = url
                     files.append(rel)
                     
@@ -172,7 +191,8 @@ def main():
             items.append(metadata)
             
         else:
-            print('Unexpected digital object type {0}, skipping...'.format(type))
+            print('Unexpected digital object type {0}, skipping...'.format(
+                type))
                     
     # save the items to file
     write_file(items, "items")
