@@ -98,6 +98,53 @@ def get_metadata(pid):
     return result
 
 
+#= Function ===========
+# get handle for object
+#======================
+def get_handle(pid):
+    suffix = "/umd-bdef:handle/getHandle/"
+    url = "http://fedora.lib.umd.edu/fedora/get/{0}{1}".format(pid, suffix)
+    response = requests.get(url)
+    handle_xml = ET.fromstring(response.text)
+    return handle_xml.find('./result/handlehttp').text
+
+
+#= Function =========================
+# prepare omeka CSVimport spreadsheet
+#====================================
+def prepare_csvimport(data):
+    for d in data:
+        import_version = {
+            'Dublin Core:Identifier': [data['pid'], data['handle']],
+            'Dublin Core:Type': data['mediatype'],
+            'Dublin Core:Title': data['title'],
+            'Dublin Core:Description': data['summary'],
+            'Dublin Core:Date': data['date'],
+            'Dublin Core:Temporal Coverage': data['century'],
+            'Dublin Core:Extent': '{0} pages'.format(len(data['files'])),
+            'Dublin Core:Relation': data['repository'],
+            'Scripto:Status': 'To transcribe',
+            'tags': data['subjects'],
+            'recordType': 'Item',
+            'collection': data['collection'],
+            'file': data['files']
+            }
+    return import_version
+
+
+#= Function ================================
+# prepare omeka update spreadsheet for files
+#===========================================
+def prepare_omeka_files(data):
+    for d in data:
+        import_version = {
+            'updateIdentifier': "Dublin Core:Title",
+            'updateMode': 'Replace',
+            'recordType': 'File',
+            'recordIdentifier': data['url']
+            }
+    return import_version
+
 #= Function ========================
 # get related objects from rels-mets
 #===================================
@@ -157,9 +204,11 @@ def main():
             print('  => {0} is a collection; skipping...'.format(pid))
         
         elif type == "UMD_IMAGE":
+            
             metadata = get_metadata(pid)
             relationships = get_rels(pid)
-            metadata['file_urls'] = []
+            metadata['handle'] = get_handle(pid)
+            metadata['files'] = []
             metadata['has_part'] = []
             metadata['part_of'] = []
             
@@ -180,15 +229,15 @@ def main():
                         
                 elif rel['type'] == 'image':
                     url = 'http://fedora.lib.umd.edu/fedora/get/{0}/image'.format(id)
-                    metadata['file_urls'].append(url)
+                    metadata['files'].append(url)
                     metadata['has_part'].append(id)
                     rel['url'] = url
-                    files.append(rel)
+                    files.append(prepare_omeka_files(rel))
                     
                 else:
                     print('unknown type "{0}"'.format(rel['type']))
             
-            items.append(metadata)
+            items.append(prepare_csvimport(metadata))
             
         else:
             print('Unexpected digital object type {0}, skipping...'.format(
