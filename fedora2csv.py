@@ -141,7 +141,7 @@ def prepare_omeka_files(data):
             'updateIdentifier': "Dublin Core:Title",
             'updateMode': 'Replace',
             'recordType': 'File',
-            'recordIdentifier': data['url']
+            'recordIdentifier': data['label']
             }
     return import_version
 
@@ -173,6 +173,7 @@ def get_rels(pid):
     pages = mets.findall(
         './xmlns:structMap/xmlns:div/[@ID="images"]/xmlns:div', ns)
     for p in pages:
+        print(p)
         id = p.find('./xmlns:div/xmlns:fptr', ns).attrib['FILEID']
         result[id].update(
             {'order': p.attrib['ORDER'], 'label': p.attrib['LABEL']})
