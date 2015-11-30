@@ -122,13 +122,13 @@ def prepare_csvimport(data):
             'Dublin Core:Description': data['summary'],
             'Dublin Core:Date': data['date'],
             'Dublin Core:Temporal Coverage': data['century'],
-            'Dublin Core:Extent': '{0} pages'.format(len(data['files'])),
+            'Dublin Core:Extent': '{0} pages'.format(len(data['file_urls'])),
             'Dublin Core:Relation': data['repository'],
             'Scripto:Status': 'To transcribe',
             'tags': data['subjects'],
             'recordType': 'Item',
             'collection': data['collection'],
-            'file': data['files']
+            'file': data['file_urls']
             }
     return import_version
 
@@ -165,13 +165,13 @@ def get_rels(pid):
         './xmlns:div/[@ID="isMemberOfCollection"]/xmlns:fptr', ns)
     for c in collections:
         id = c.attrib['FILEID']
-        result[id] = {'id': id, 'type': 'collection'}
+        result[id] = {'id': id, 'type': 'collection', 'rel': 'member of'}
         
     # Then get the parts of the object
     parts = rels.findall('./xmlns:div/[@ID="hasPart"]/xmlns:fptr', ns)
     for p in parts:
         id = p.attrib['FILEID']
-        result[id] = {'id': id, 'type': 'image'}
+        result[id] = {'id': id, 'type': 'image', 'rel': 'has part'}
     
     # Attach the page attributes (order and label) for each part
     pages = mets.findall(
@@ -190,44 +190,6 @@ def get_rels(pid):
     
     # convert the result dictionary to a list, dropping the file id
     return [result[r] for r in result if r is not 'id']
-
-
-#= Function =======
-# process each item
-#==================
-def process_object(pid):
-    metadata = get_metadata(pid)
-    relationships = get_rels(pid)
-    metadata['handle'] = get_handle(pid)
-    metadata['file_urls'] = []
-    metadata['has_part'] = []
-    metadata['is_part_of'] = []
-        
-    # analyze relationships and assign object to appropriate list
-    for rel in relationships:
-        id = rel['pid']
-        if rel['type'] == 'collection':
-            # if the collection is already in the list, append the pid
-            if id in collections:
-                collections[id]['children'].append(pid)
-            # otherwise, add the collection to main list
-            else:
-                rel['children'] = [pid]
-                collections[id] = rel
-            # add the collection pid to the item metadata
-            metadata['is_part_of'].append(id)
-                    
-        elif rel['type'] == 'image':
-            url = 'http://fedora.lib.umd.edu/fedora/get/{0}/image'.format(id)
-            metadata['file_urls'].append(url)
-            metadata['has_part'].append(id)
-            rel['url'] = url
-            files.append(prepare_omeka_files(rel))
-        
-        items.append(prepare_csvimport(metadata))
-            
-    else:
-        print('Unexpected digital object type {0}, skipping...'.format(type))
 
 
 #= Function ==================
@@ -251,31 +213,58 @@ def main():
     pids = load_file(args.infile)
     
     if args.resume:
-        complete = 
+        complete = load_file(outfile)
 
     # loop through the input pids
     for pid in pids:
         type = get_type(pid)
+        
         if type == "UMD_COLLECTION":
             print('  => {0} is a collection; skipping...'.format(pid))
-        elif type == "UMD_IMAGE":
-            items.append(process_object(pid))
-        else:
-            print('unknown type "{0}"'.format(rel['type']))
         
+        elif type == "UMD_IMAGE":
+            metadata = get_metadata(pid)
+            metadata['rels'] = get_rels(pid)
+            metadata['handle'] = get_handle(pid)
+            metadata['file_urls'] = []
+            metadata['has_part'] = []
+            metadata['is_part_of'] = []
+            
+            items.append(prepare_csvimport(metadata))
+            
+            for rel in metadata['rels']:
+                if rel['type'] == 'collection':
+                    # add the collection pid to the item metadata
+                    metadata['is_part_of'].append(rel['pid'])
+                    # if the collection is already in the list, append the pid
+                    if rel['pid'] in collections:
+                        collections[rel['pid']]['children'].append(pid)
+                    # otherwise, add the collection to the collections list
+                    else:
+                        collections[rel['pid']] = {'children': [pid]}
+ 
+                elif rel['type'] == 'image':
+                    url = 'http://fedora.lib.umd.edu/fedora/get/{0}/image'.format(rel['pid'])
+                    metadata['file_urls'].append(url)
+                    metadata['has_part'].append(rel['pid'])
+            
+        else:
+            print('Unexpected digital object type {0}, skipping...'.format(
+                type))
+    
     # save the items to file
     write_file(items, "items")
     
     # convert collections dict to list and save to file
-    collections_list = [collections[d] for d in collections]
+    collections_list = []
+    for k,v in collections.items():
+        v.update({'id': k})
+        collections_list.append(v)
     write_file(collections_list, "collections")
-    
-    # save the files to file
-    write_file(files, "files")
-
+        
 
 #============
-# main logic
+# call main
 #============
 if __name__ == "__main__":
     main()
