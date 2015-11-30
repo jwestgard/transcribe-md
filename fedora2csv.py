@@ -1,16 +1,17 @@
 #!/usr/bin/env python3
-
+import argparse
 import csv
 import requests
 import sys
-import xml.etree.ElementTree as ET
 from time import sleep
+import xml.etree.ElementTree as ET
+
 
 
 #= Function =========
-# Load pids from file
+# Load data from file
 #====================
-def load_pids(infile):
+def load_file(infile):
     with open(infile, 'r') as f:
         result = [line.rstrip('\n') for line in f]
         return result
@@ -98,9 +99,9 @@ def get_metadata(pid):
     return result
 
 
-#= Function ===========
-# get handle for object
-#======================
+#= Function ==
+# get handle
+#=============
 def get_handle(pid):
     suffix = "/umd-bdef:handle/getHandle/"
     url = "http://fedora.lib.umd.edu/fedora/get/{0}{1}".format(pid, suffix)
@@ -145,6 +146,7 @@ def prepare_omeka_files(data):
             }
     return import_version
 
+
 #= Function ========================
 # get related objects from rels-mets
 #===================================
@@ -158,92 +160,109 @@ def get_rels(pid):
     mets = ET.fromstring(response.text)
     rels = mets.find('./xmlns:structMap/xmlns:div/[@ID="rels"]', ns)
     
-    # Get the pids of all related items
+    # Get the pids of all related items, first the collections
     collections = rels.findall(
         './xmlns:div/[@ID="isMemberOfCollection"]/xmlns:fptr', ns)
     for c in collections:
         id = c.attrib['FILEID']
         result[id] = {'id': id, 'type': 'collection'}
+        
+    # Then get the parts of the object
     parts = rels.findall('./xmlns:div/[@ID="hasPart"]/xmlns:fptr', ns)
     for p in parts:
         id = p.attrib['FILEID']
         result[id] = {'id': id, 'type': 'image'}
     
-    # Get the page attributes for each part
+    # Attach the page attributes (order and label) for each part
     pages = mets.findall(
         './xmlns:structMap/xmlns:div/[@ID="images"]/xmlns:div', ns)
     for p in pages:
-        print(p)
         id = p.find('./xmlns:div/xmlns:fptr', ns).attrib['FILEID']
         result[id].update(
             {'order': p.attrib['ORDER'], 'label': p.attrib['LABEL']})
     
-    # Get the pids for each related item
+    # Attach the pid for each related item
     files = mets.findall('./xmlns:fileSec/xmlns:fileGrp/xmlns:file', ns)
     for f in files:
         pid = f.find(
             './xmlns:FLocat', ns).attrib['{http://www.w3.org/1999/xlink}href']
         result[f.attrib['ID']].update({'pid': pid})
     
-    return [result[r] for r in result]
+    # convert the result dictionary to a list, dropping the file id
+    return [result[r] for r in result if r is not 'id']
+
+
+#= Function =======
+# process each item
+#==================
+def process_object(pid):
+    metadata = get_metadata(pid)
+    relationships = get_rels(pid)
+    metadata['handle'] = get_handle(pid)
+    metadata['file_urls'] = []
+    metadata['has_part'] = []
+    metadata['is_part_of'] = []
+        
+    # analyze relationships and assign object to appropriate list
+    for rel in relationships:
+        id = rel['pid']
+        if rel['type'] == 'collection':
+            # if the collection is already in the list, append the pid
+            if id in collections:
+                collections[id]['children'].append(pid)
+            # otherwise, add the collection to main list
+            else:
+                rel['children'] = [pid]
+                collections[id] = rel
+            # add the collection pid to the item metadata
+            metadata['is_part_of'].append(id)
+                    
+        elif rel['type'] == 'image':
+            url = 'http://fedora.lib.umd.edu/fedora/get/{0}/image'.format(id)
+            metadata['file_urls'].append(url)
+            metadata['has_part'].append(id)
+            rel['url'] = url
+            files.append(prepare_omeka_files(rel))
+        
+        items.append(prepare_csvimport(metadata))
+            
+    else:
+        print('Unexpected digital object type {0}, skipping...'.format(type))
 
 
 #= Function ==================
 # main loop to handle each pid
 #=============================
 def main():
-    pids = load_pids(sys.argv[1])
     collections = {}
     items = []
     files = []
+
+    # parse arguments
+    parser = argparse.ArgumentParser(
+        description='Extract Fedora2 Objects and Load Elsewhere')
+    parser.add_argument('--infile', '-i', action='store', 
+        help='file containing identifiers of objects to be captured')
+    parser.add_argument('--outfile', '-o', action='store', 
+        help='path to outputfile (different suffixes will be supplied)')
+    parser.add_argument('--resume', '-r', action='store_true')
+    args = parser.parse_args()
+
+    pids = load_file(args.infile)
     
+    if args.resume:
+        complete = 
+
     # loop through the input pids
     for pid in pids:
         type = get_type(pid)
-        
         if type == "UMD_COLLECTION":
             print('  => {0} is a collection; skipping...'.format(pid))
-        
         elif type == "UMD_IMAGE":
-            
-            metadata = get_metadata(pid)
-            relationships = get_rels(pid)
-            metadata['handle'] = get_handle(pid)
-            metadata['files'] = []
-            metadata['has_part'] = []
-            metadata['part_of'] = []
-            
-            # analyze relationships and assign object to appropriate list
-            for rel in relationships:
-                del rel['id']
-                id = rel['pid']
-                if rel['type'] == 'collection':
-                    # if the collection is already in the list, append the pid
-                    if id in collections:
-                        collections[id]['children'].append(pid)
-                    # otherwise, add the collection to main list
-                    else:
-                        rel['children'] = [pid]
-                        collections[id] = rel
-                    # add the collection pid to the item metadata
-                    metadata['part_of'].append(id)
-                        
-                elif rel['type'] == 'image':
-                    url = 'http://fedora.lib.umd.edu/fedora/get/{0}/image'.format(id)
-                    metadata['files'].append(url)
-                    metadata['has_part'].append(id)
-                    rel['url'] = url
-                    files.append(prepare_omeka_files(rel))
-                    
-                else:
-                    print('unknown type "{0}"'.format(rel['type']))
-            
-            items.append(prepare_csvimport(metadata))
-            
+            items.append(process_object(pid))
         else:
-            print('Unexpected digital object type {0}, skipping...'.format(
-                type))
-                    
+            print('unknown type "{0}"'.format(rel['type']))
+        
     # save the items to file
     write_file(items, "items")
     
