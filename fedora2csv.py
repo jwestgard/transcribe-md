@@ -57,6 +57,7 @@ def get_metadata(pid):
     result = {'pid': pid}
     url = "http://fedora.lib.umd.edu/fedora/get/{0}/umdm".format(pid)
     response = requests.get(url)
+    print("umdm response: {0}".format(response))
     umdm = ET.fromstring(response.text)
 
     # Media Type
@@ -155,6 +156,7 @@ def get_rels(pid):
         'xlink':'http://www.w3.org/1999/xlink'}
     
     response = requests.get(url)
+    print("rels response: {0}".format(response))
     mets = ET.fromstring(response.text)
     rels = mets.find('./xmlns:structMap/xmlns:div/[@ID="rels"]', ns)
     
@@ -253,22 +255,26 @@ def main():
                         url += '{0}/image'.format(rel['pid'])
                         metadata['file_urls'].append(url)
                         metadata['has_part'].append(rel['pid'])
-            
+                
+                items.append(metadata)
                 row = prepare_csvimport(metadata)
                 dw.writerow({k:list_to_string(v, ";") for (k,v) in row.items()})
-                sleep(1)
                 
             else:
                 print('Unexpected digital object type {0}, skipping...'.format(
                     type))
     
     # convert collections dict to list and save to file
-    collections_list = []
-    for k,v in collections.items():
-        v.update({'id': k})
-        collections_list.append(v)
-    filename = args.outfile + "-collections.csv"
-    write_file(collections_list, filename)
+    collections_list = set([d['collection'] for d in items])
+    print(collections_list)
+    print(items)
+    
+    
+#     for k,v in collections.items():
+#         v.update({'id': k})
+#         collections_list.append(v)
+#     filename = args.outfile + "-collections.csv"
+#     write_file(collections_list, filename)
         
 
 #============
