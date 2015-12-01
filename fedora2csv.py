@@ -7,7 +7,6 @@ from time import sleep
 import xml.etree.ElementTree as ET
 
 
-
 #= Function =========
 # Load data from file
 #====================
@@ -20,8 +19,7 @@ def load_file(infile):
 #= Function ==========
 # write output to file
 #=====================
-def write_file(data, filetype):
-    filename = sys.argv[2] + "-" + filetype + ".csv"
+def write_file(data, filename):
     with open(filename, 'w') as outfile:
         fieldnames = set().union(*(d.keys() for d in data))
         dw = csv.DictWriter(outfile, fieldnames=fieldnames)
@@ -214,53 +212,63 @@ def main():
     
     if args.resume:
         complete = load_file(outfile)
-
-    # loop through the input pids
-    for pid in pids:
-        type = get_type(pid)
-        
-        if type == "UMD_COLLECTION":
-            print('  => {0} is a collection; skipping...'.format(pid))
-        
-        elif type == "UMD_IMAGE":
-            metadata = get_metadata(pid)
-            metadata['rels'] = get_rels(pid)
-            metadata['handle'] = get_handle(pid)
-            metadata['file_urls'] = []
-            metadata['has_part'] = []
-            metadata['is_part_of'] = []
-            
-            items.append(prepare_csvimport(metadata))
-            
-            for rel in metadata['rels']:
-                if rel['type'] == 'collection':
-                    # add the collection pid to the item metadata
-                    metadata['is_part_of'].append(rel['pid'])
-                    # if the collection is already in the list, append the pid
-                    if rel['pid'] in collections:
-                        collections[rel['pid']]['children'].append(pid)
-                    # otherwise, add the collection to the collections list
-                    else:
-                        collections[rel['pid']] = {'children': [pid]}
- 
-                elif rel['type'] == 'image':
-                    url = 'http://fedora.lib.umd.edu/fedora/get/{0}/image'.format(rel['pid'])
-                    metadata['file_urls'].append(url)
-                    metadata['has_part'].append(rel['pid'])
-            
-        else:
-            print('Unexpected digital object type {0}, skipping...'.format(
-                type))
     
-    # save the items to file
-    write_file(items, "items")
+    filename = args.outfile + "-items.csv"
+    with open(filename, 'w') as outfile:
+        fieldnames = ['Dublin Core:Identifier', 'Dublin Core:Type', 
+            'Dublin Core:Title', 'Dublin Core:Description', 'Dublin Core:Date',
+            'Dublin Core:Temporal Coverage', 'Dublin Core:Extent', 
+            'Dublin Core:Relation', 'Scripto:Status', 'tags', 'recordType', 
+            'collection', 'file']
+        dw = csv.DictWriter(outfile, fieldnames=fieldnames)
+        dw.writeheader()
+        # loop through the input pids
+        for pid in pids:
+            type = get_type(pid)
+            
+            if type == "UMD_COLLECTION":
+                print('  => {0} is a collection; skipping...'.format(pid))
+        
+            elif type == "UMD_IMAGE":
+                metadata = get_metadata(pid)
+                metadata['rels'] = get_rels(pid)
+                metadata['handle'] = get_handle(pid)
+                metadata['file_urls'] = []
+                metadata['has_part'] = []
+                metadata['is_part_of'] = []
+            
+                for rel in metadata['rels']:
+                    if rel['type'] == 'collection':
+                        # add the collection pid to the item metadata
+                        metadata['is_part_of'].append(rel['pid'])
+                        # if the collection is already in the list, append the pid
+                        if rel['pid'] in collections:
+                            collections[rel['pid']]['children'].append(pid)
+                        # otherwise, add the collection to the collections list
+                        else:
+                            collections[rel['pid']] = {'children': [pid]}
+ 
+                    elif rel['type'] == 'image':
+                        url = 'http://fedora.lib.umd.edu/fedora/get/'
+                        url += '{0}/image'.format(rel['pid'])
+                        metadata['file_urls'].append(url)
+                        metadata['has_part'].append(rel['pid'])
+            
+                row = prepare_csvimport(metadata)
+                dw.writerow({k:list_to_string(v, ";") for (k,v) in row.items()})
+                sleep(1)
+                
+            else:
+                print('Unexpected digital object type {0}, skipping...'.format(
+                    type))
     
     # convert collections dict to list and save to file
     collections_list = []
     for k,v in collections.items():
         v.update({'id': k})
         collections_list.append(v)
-    write_file(collections_list, "collections")
+    filename = args.outfile + "-collections.csv"
+    write_file(collections_list, filename)
         
 
 #============
