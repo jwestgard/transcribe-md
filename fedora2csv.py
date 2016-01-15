@@ -91,9 +91,11 @@ def get_metadata(pid):
     result['collection'] = collection.text if collection is not None else ''
     
     # Subject Elements
+    result['subjects'] = []
     subjects = umdm.findall('./subject/[@type="topical"]')
-    result['subjects'] = [
-        s.text for s in subjects if s is not ''] if subjects is not None else ''
+    for s in subjects:
+        if not s.text.isspace():
+            result['subjects'].append(s.text)
     
     return result
 
@@ -268,7 +270,8 @@ def main():
     collections_list = set([d['collection'] for d in items])
     print(collections_list)
     print(items)
-    
+    for i in items:
+        print(i)
     
 #     for k,v in collections.items():
 #         v.update({'id': k})
