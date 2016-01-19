@@ -43,7 +43,7 @@ def list_to_string(data, delimiter):
 #===================================
 def get_type(pid):
     url = "http://fedora.lib.umd.edu/fedora/get/{0}/doInfo".format(pid)
-    print(url)
+    # print(url)
     response = requests.get(url)
     doinfo = ET.fromstring(response.text)
     type = doinfo.find('{http://www.itd.umd.edu/fedora/doInfo}type')
@@ -57,7 +57,7 @@ def get_metadata(pid):
     result = {'pid': pid}
     url = "http://fedora.lib.umd.edu/fedora/get/{0}/umdm".format(pid)
     response = requests.get(url)
-    print("umdm response: {0}".format(response))
+    # print("umdm response: {0}".format(response))
     umdm = ET.fromstring(response.text)
 
     # Media Type
@@ -158,7 +158,6 @@ def get_rels(pid):
         'xlink':'http://www.w3.org/1999/xlink'}
     
     response = requests.get(url)
-    print("rels response: {0}".format(response))
     mets = ET.fromstring(response.text)
     rels = mets.find('./xmlns:structMap/xmlns:div/[@ID="rels"]', ns)
     
@@ -228,6 +227,7 @@ def main():
         dw.writeheader()
         # loop through the input pids
         for pid in pids:
+            print(pid)
             type = get_type(pid)
             
             if type == "UMD_COLLECTION":
@@ -257,7 +257,13 @@ def main():
                         url += '{0}/image'.format(rel['pid'])
                         metadata['file_urls'].append(url)
                         metadata['has_part'].append(rel['pid'])
+                        
+                        # add page-level info to files list
+                        page = rel
+                        page['url'] = url
+                        files.append(page)
                 
+                # add item-level info to items list
                 items.append(metadata)
                 row = prepare_csvimport(metadata)
                 dw.writerow({k:list_to_string(v, ";") for (k,v) in row.items()})
@@ -266,19 +272,20 @@ def main():
                 print('Unexpected digital object type {0}, skipping...'.format(
                     type))
     
-    # convert collections dict to list and save to file
-    collections_list = set([d['collection'] for d in items])
-    print(collections_list)
-    print(items)
-    for i in items:
-        print(i)
+    # construct arch_colls list based on collection metadata not fedora rels
+    archival_collections = set([i['collection'] for i in items])
+    archival_collections_list = []
+    # populate dictionary for each collection with name and pids of members
+    for a in archival_collections:
+        item_dict = {'collection': a}
+        item_dict['members'] = [i['pid'] for i in items if i['collection'] == a]
+        archival_collections_list.append(item_dict)
+    collections_output = args.outfile + "-collections.csv"
+    write_file(archival_collections_list, collections_output)
     
-#     for k,v in collections.items():
-#         v.update({'id': k})
-#         collections_list.append(v)
-#     filename = args.outfile + "-collections.csv"
-#     write_file(collections_list, filename)
-        
+    # 
+    files_output = args.outfile + "-files.csv"
+    write_file(files, files_output)
 
 #============
 # call main
