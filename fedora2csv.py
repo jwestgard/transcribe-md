@@ -260,7 +260,13 @@ def main():
                         
                         # add page-level info to files list
                         page = rel
-                        page['url'] = url
+                        page['updateIdentifier'] = url
+                        page['member_of'] = pid
+                        page['recordType'] = "File"
+                        page['updateMode'] = "Replace"
+                        del page['id']
+                        del page['rel']
+                        del page['type']
                         files.append(page)
                 
                 # add item-level info to items list
@@ -281,10 +287,12 @@ def main():
         item_dict['members'] = [i['pid'] for i in items if i['collection'] == a]
         archival_collections_list.append(item_dict)
     collections_output = args.outfile + "-collections.csv"
+    print('Writing collections csv...')
     write_file(archival_collections_list, collections_output)
     
-    # 
+    # write csv for updating file names
     files_output = args.outfile + "-files.csv"
+    print('Writing file-update csv...')
     write_file(files, files_output)
 
 #============
