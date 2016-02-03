@@ -117,6 +117,7 @@ def get_handle(pid):
 def prepare_csvimport(data):
     for d in data:
         import_version = {
+            'id': data['id'],
             'Dublin Core:Identifier': [data['pid'], data['handle']],
             'Dublin Core:Type': data['mediatype'],
             'Dublin Core:Title': data['title'],
@@ -218,7 +219,7 @@ def main():
     
     filename = args.outfile + "-items.csv"
     with open(filename, 'w') as outfile:
-        fieldnames = ['Dublin Core:Identifier', 'Dublin Core:Type', 
+        fieldnames = ['id','Dublin Core:Identifier', 'Dublin Core:Type', 
             'Dublin Core:Title', 'Dublin Core:Description', 'Dublin Core:Date',
             'Dublin Core:Temporal Coverage', 'Dublin Core:Extent', 
             'Dublin Core:Relation', 'Scripto:Status', 'tags', 'recordType', 
@@ -226,8 +227,8 @@ def main():
         dw = csv.DictWriter(outfile, fieldnames=fieldnames)
         dw.writeheader()
         # loop through the input pids
-        for pid in pids:
-            print(pid)
+        for n, pid in enumerate(pids):
+            print(n+1, pid)
             type = get_type(pid)
             
             if type == "UMD_COLLECTION":
@@ -240,6 +241,7 @@ def main():
                 metadata['file_urls'] = []
                 metadata['has_part'] = []
                 metadata['is_part_of'] = []
+                metadata['id'] = n + 1
             
                 for rel in metadata['rels']:
                     if rel['type'] == 'collection':
