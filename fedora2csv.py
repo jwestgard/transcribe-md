@@ -234,7 +234,7 @@ def main():
             if type == "UMD_COLLECTION":
                 print('  => {0} is a collection; skipping...'.format(pid))
         
-            elif type == "UMD_IMAGE":
+            elif type == "UMD_IMAGE" or type == "UMD_BOOK":
                 metadata = get_metadata(pid)
                 metadata['rels'] = get_rels(pid)
                 metadata['handle'] = get_handle(pid)
